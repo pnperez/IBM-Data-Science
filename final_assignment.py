@@ -5,29 +5,11 @@ Created on Mon Feb 13 20:37:59 2023
 @author: pablo
 """
 ################ Final Assignment ############################
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 import yfinance as yf
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-
-def make_graph(stock_data, revenue_data, stock):
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, subplot_titles=("Historical Share Price", "Historical Revenue"), vertical_spacing = .3)
-    stock_data_specific = stock_data[stock_data.Date <= '2021--06-14']
-    revenue_data_specific = revenue_data[revenue_data.Date <= '2021-04-30']
-    fig.add_trace(go.Scatter(x=pd.to_datetime(stock_data_specific.Date, infer_datetime_format=True), y=stock_data_specific.Close.astype("float"), name="Share Price"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=pd.to_datetime(revenue_data_specific.Date, infer_datetime_format=True), y=revenue_data_specific.Revenue.astype("float"), name="Revenue"), row=2, col=1)
-    fig.update_xaxes(title_text="Date", row=1, col=1)
-    fig.update_xaxes(title_text="Date", row=2, col=1)
-    fig.update_yaxes(title_text="Price ($US)", row=1, col=1)
-    fig.update_yaxes(title_text="Revenue ($US Millions)", row=2, col=1)
-    fig.update_layout(showlegend=False,
-    height=900,
-    title=stock,
-    xaxis_rangeslider_visible=True)
-    fig.show()
-    
 
 tesla = yf.Ticker("TSLA")
 tesla_data = tesla.history(period = "max")
@@ -46,19 +28,18 @@ tesla_revenue = pd.DataFrame(columns=["Date", "Revenue"])
 read_html_pandas_data = pd.read_html(str(soup))
 
 tesla_revenue = read_html_pandas_data[1]
-column_names = {'Tesla Quarterly Revenue(Millions of US $)':'Date', 'Tesla Quarterly Revenue(Millions of US $).1':'Revenue'}
-tesla_revenue.rename(columns=column_names, inplace=True)
+tesla_revenue.rename(columns={'Tesla Quarterly Revenue (Millions of US $)': 'Date', 'Tesla Quarterly Revenue (Millions of US $).1': 'Revenue'}, inplace=True)
 
 # Clean the data
-tesla_revenue["Revenue"] = tesla_revenue['Revenue'].str.replace(',|\$',"")
-
+tesla_revenue["Revenue"] = tesla_revenue['Revenue'].str.replace(',|\$',"",regex=True).astype(float)
+tesla_revenue["Revenue"] = tesla_revenue['Revenue'].str.replace(',', '').str.replace('$', '').astype(float)
 tesla_revenue.dropna(inplace=True)
 
 tesla_revenue = tesla_revenue[tesla_revenue['Revenue'] != ""]
 
 tesla_revenue.tail(5)
 
-
+tesla_revenue["Date"] = pd.to_datetime(tesla_revenue["Date"])
 ###### GameStop ######
 gamestop = yf.Ticker("GME")
 gme_data = gamestop.history(period = "max")
@@ -70,20 +51,40 @@ html_data = requests.get(url).text
 soup = BeautifulSoup(html_data, 'html5lib')
 read_html_pandas_data = pd.read_html(str(soup))
 gme_revenue = read_html_pandas_data[1]
-column_names = {'GameStop Quarterly Revenue(Millions of US $)':'Date', 'GameStop Quarterly Revenue(Millions of US $).1':'Revenue'}
-gme_revenue.rename(columns=column_names, inplace=True)
+gme_revenue.rename(columns={'GameStop Quarterly Revenue (Millions of US $)':'Date', 'GameStop Quarterly Revenue (Millions of US $).1':'Revenue'}, inplace=True)
 
 # Clean the data
-gme_revenue["Revenue"] = gme_revenue['Revenue'].str.replace(',|\$',"")
+gme_revenue["Revenue"] = gme_revenue['Revenue'].str.replace(',|\$',"",regex=True).astype(float)
 
 gme_revenue.dropna(inplace=True)
 
 gme_revenue = gme_revenue[gme_revenue['Revenue'] != ""]
-
+gme_revenue["Date"] = pd.to_datetime(gme_revenue["Date"])
 
 gme_revenue.tail(5)
 
 
 ##### Graphs
+def make_graph(stock_data, revenue_data, company_name):
+    fig, ax1 = plt.subplots()
 
+    # Graficar los precios de las acciones
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Price ($US)', color='tab:blue')
+    ax1.plot(stock_data['Date'], stock_data['Close'], color='tab:blue')
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
+
+    # Crear un segundo eje para los ingresos
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Revenue ($US Millions)', color='tab:red')
+    ax2.plot(revenue_data['Date'], revenue_data['Revenue'], color='tab:red')
+    ax2.tick_params(axis='y', labelcolor='tab:red')
+
+    # Agregar título y mostrar gráfico
+    plt.title(f'{company_name} Historical Stock Price and Revenue')
+    fig.tight_layout()
+    plt.show()
+    
+    
 make_graph(tesla_data, tesla_revenue, 'Tesla')
+make_graph(gme_data, gme_revenue, 'GameStop')
